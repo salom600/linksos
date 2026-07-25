@@ -43,12 +43,34 @@ jobs:
         run: |
           echo "==> Initializing Arch Linux build environment..."
           
-          # Full system update first
+          # Step 1: Full system update
           pacman -Syu --noconfirm
           
-          # Install ONLY packages that exist in Arch repos
-          # NOTE: shim-signed is NOT in Arch repos (Debian-only)
-          # NOTE: edk2-shell IS in Arch extra repo
+          # Step 2: Add archlinuxcn repo BEFORE installing its keyring
+          # The keyring lives inside the archlinuxcn repo, so we must
+          # add the repo first with TrustAll to bootstrap it
+          echo "==> Adding archlinuxcn repository..."
+          cat >> /etc/pacman.conf << 'REPOEOF'
+          [archlinuxcn]
+          Server = https://repo.archlinuxcn.org/$arch
+          SigLevel = Optional TrustAll
+          REPOEOF
+          
+          # Step 3: Sync all repos (including the newly added archlinuxcn)
+          pacman -Sy --noconfirm
+          
+          # Step 4: Initialize pacman keyring
+          pacman-key --init
+          pacman-key --populate archlinux
+          
+          # Step 5: Install archlinuxcn keyring (now available from the repo)
+          pacman -S --noconfirm --needed archlinuxcn-keyring || {
+            echo "==> archlinuxcn-keyring not available, downloading directly..."
+            curl -L "https://raw.githubusercontent.com/archlinuxcn/archlinuxcn-keyring/master/archlinuxcn-keyring.pkg.tar.zst" -o /tmp/cn-keyring.pkg.tar.zst
+            pacman -U --noconfirm /tmp/cn-keyring.pkg.tar.zst || true
+          }
+          
+          # Step 6: Install build tools (all from official Arch repos)
           pacman -S --noconfirm --needed \
             base-devel \
             archiso \
@@ -67,22 +89,10 @@ jobs:
             edk2-shell \
             imagemagick \
             python \
-            jq \
-            archlinuxcn-keyring
+            jq
           
-          # Update mirror list for faster downloads
+          # Step 7: Update mirror list for faster downloads
           reflector --country "US,DE,FR,GB,NL" --latest 20 --sort rate --save /etc/pacman.d/mirrorlist
-          
-          # Add archlinuxcn repo to host pacman so we can use yay/brave-bin
-          if ! grep -q "archlinuxcn" /etc/pacman.conf; then
-            cat >> /etc/pacman.conf << 'REPOEOF'
-          [archlinuxcn]
-          Server = https://repo.archlinuxcn.org/$arch
-          SigLevel = Optional TrustAll
-          REPOEOF
-          fi
-          
-          pacman -Sy --noconfirm
           
           echo "==> Build environment ready!"
 
