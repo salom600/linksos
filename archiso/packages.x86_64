@@ -1,0 +1,198 @@
+# LinkSOS Package List (x86_64)
+# Optimized for minimal idle RAM + gaming + modern desktop
+
+# === BASE SYSTEM ===
+base
+base-devel
+linux-zen
+linux-zen-headers
+linux-firmware
+linux-firmware-whence
+systemd
+systemd-sysvcompat
+systemd-resolvconf
+dbus-broker
+util-linux
+coreutils
+
+# === BOOT & INSTALLER ===
+grub
+efibootmgr
+os-prober
+memtest86+
+syslinux
+calamares
+squashfs-tools
+
+# === HYPERLAND DESKTOP ===
+hyprland
+waybar
+rofi-wayland
+dunst
+swaybg
+swayidle
+swaylock
+sddm
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+polkit-kde-agent
+qt5-wayland
+qt6-wayland
+glfw-wayland
+xorg-xwayland
+
+# === FILE MANAGER & UTILITIES ===
+dolphin
+konsole
+kate
+ark
+filelight
+ffmpegthumbs
+kdegraphics-thumbnailers
+gvfs
+gvfs-mtp
+gvfs-smb
+gvfs-gphoto2
+
+# === NETWORKING ===
+networkmanager
+iwd
+nm-connection-editor
+avahi
+nss-mdns
+
+# === AUDIO ===
+pipewire
+pipewire-pulse
+pipewire-jack
+pipewire-alsa
+wireplumber
+pavucontrol
+pamixer
+alsa-utils
+sof-firmware
+
+# === THEMING ===
+tela-icon-theme
+papirus-icon-theme
+nwg-look
+kvantum
+qt5ct
+qt6ct
+adwaita-gtk-theme
+gnome-themes-extra
+
+# === FONTS ===
+noto-fonts
+noto-fonts-cjk
+noto-fonts-emoji
+noto-fonts-extra
+ttf-font-awesome
+ttf-jetbrains-mono
+ttf-hack
+ttf-dejavu
+ttf-liberation
+
+# === GAMING ===
+wine
+wine-mono
+wine-gecko
+winetricks
+lutris
+steam
+mangohud
+lib32-mangohud
+gamemode
+lib32-gamemode
+gamescope
+protontricks
+steam-native-runtime
+
+# === GRAPHICS DRIVERS (ALL) ===
+mesa
+lib32-mesa
+vulkan-radeon
+lib32-vulkan-radeon
+vulkan-intel
+lib32-vulkan-intel
+vulkan-swrast
+lib32-vulkan-swrast
+nvidia-dkms
+nvidia-utils
+lib32-nvidia-utils
+nvidia-settings
+xf86-video-amdgpu
+xf86-video-ati
+xf86-video-intel
+xf86-video-nouveau
+lib32-vulkan-nouveau
+vulkan-mesa-layers
+lib32-vulkan-mesa-layers
+
+# === FLATPAK ===
+flatpak
+
+# === BROWSER ===
+# brave-bin from AUR (installed in customize_airootfs.sh)
+
+# === SYSTEM UTILITIES ===
+htop
+btop
+fastfetch
+git
+curl
+wget
+vim
+nano
+rsync
+usbutils
+pciutils
+lshw
+dmidecode
+inxi
+smartmontools
+udisks2
+udisks2-btrfs
+bluez
+bluez-utils
+blueman
+cups
+ghostscript
+gsfonts
+sane
+sane-airscan
+simple-scan
+bash-completion
+man-db
+man-pages
+texinfo
+less
+which
+diffutils
+partitionmanager
+gparted
+mpv
+ffmpeg
+imagemagick
+gwenview
+okular
+ark
+file-roller
+unzip
+unrar
+p7zip
+
+# === POWER MANAGEMENT ===
+power-profiles-daemon
+tlp
+upower
+acpi
+
+# === SECURITY ===
+firewalld
+ufw
+apparmor
+
+# === ARCH LINUX CN REPO PACKAGES ===
+yay
+brave-bin

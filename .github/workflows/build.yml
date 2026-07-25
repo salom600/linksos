@@ -1,0 +1,241 @@
+name: Build LinkSOS ISO
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - 'ARCHITECTURE.md'
+      - 'docs/**'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Release version tag (e.g., 2026.07)'
+        required: false
+        default: 'nightly'
+      build_profile:
+        description: 'Build profile (full or minimal)'
+        required: false
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - minimal
+
+env:
+  ISO_NAME: linksos
+  ARCHISO_PROFILE: archiso
+
+jobs:
+  build-iso:
+    name: Build LinkSOS ISO
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    container:
+      image: archlinux:latest
+      options: --privileged
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Initialize Arch Linux environment
+        run: |
+          echo "==> Initializing Arch Linux build environment..."
+          pacman -Syu --noconfirm --needed \
+            base-devel \
+            archiso \
+            squashfs-tools \
+            git \
+            curl \
+            wget \
+            reflector \
+            p7zip \
+            unzip \
+            dosfstools \
+            mtools \
+            xorriso \
+            grub \
+            syslinux \
+            edk2-shell \
+            shim-signed \
+            imagemagick \
+            python \
+            jq
+          
+          # Update mirror list for faster downloads
+          reflector --country "US,DE,FR,GB,NL" --latest 20 --sort rate --save /etc/pacman.d/mirrorlist
+          
+          echo "==> Build environment ready!"
+
+      - name: Install archlinuxcn keyring
+        run: |
+          echo "==> Adding archlinuxcn repository keyring..."
+          pacman-key --init
+          pacman-key --populate archlinux
+          
+          # Add archlinuxcn keyring
+          pacman -S --noconfirm archlinuxcn-keyring 2>/dev/null || {
+            curl -L "https://raw.githubusercontent.com/archlinuxcn/archlinuxcn-keyring/master/archlinuxcn-keyring.pkg.tar.zst" -o /tmp/archlinuxcn-keyring.pkg.tar.zst
+            pacman -U --noconfirm /tmp/archlinuxcn-keyring.pkg.tar.zst || true
+          }
+          
+          echo "==> Keyring configured!"
+
+      - name: Prepare archiso profile
+        run: |
+          echo "==> Preparing archiso profile..."
+          
+          WORK_DIR="/tmp/archiso-work"
+          PROFILE_DIR="${GITHUB_WORKSPACE}/${{ env.ARCHISO_PROFILE }}"
+          
+          # Create work directory
+          mkdir -p "${WORK_DIR}"
+          
+          # Verify profile structure
+          if [ ! -f "${PROFILE_DIR}/profiledef.sh" ]; then
+            echo "ERROR: profiledef.sh not found!"
+            exit 1
+          fi
+          
+          if [ ! -f "${PROFILE_DIR}/packages.x86_64" ]; then
+            echo "ERROR: packages.x86_64 not found!"
+            exit 1
+          fi
+          
+          # Validate customize script
+          if [ -f "${PROFILE_DIR}/customize_airootfs.sh" ]; then
+            chmod +x "${PROFILE_DIR}/customize_airootfs.sh"
+          fi
+          
+          echo "==> Profile validated!"
+
+      - name: Build ISO (Stage 1 - Package installation)
+        run: |
+          echo "==> [Stage 1] Starting package installation..."
+          
+          WORK_DIR="/tmp/archiso-work"
+          PROFILE_DIR="${GITHUB_WORKSPACE}/${{ env.ARCHISO_PROFILE }}"
+          
+          # Run mkarchiso - this handles:
+          # 1. Creating the chroot
+          # 2. Installing all packages from packages.x86_64
+          # 3. Running customize_airootfs.sh
+          # 4. Creating the squashfs image
+          # 5. Generating the ISO
+          
+          mkarchiso -v -w "${WORK_DIR}" -o "${GITHUB_WORKSPACE}/out" "${PROFILE_DIR}"
+          
+          echo "==> [Stage 1] Package installation complete!"
+
+      - name: Verify ISO output
+        run: |
+          echo "==> Verifying ISO output..."
+          
+          OUT_DIR="${GITHUB_WORKSPACE}/out"
+          
+          if [ ! -d "${OUT_DIR}" ]; then
+            echo "ERROR: Output directory not found!"
+            exit 1
+          fi
+          
+          ISO_FILE=$(find "${OUT_DIR}" -name "*.iso" -type f | head -1)
+          
+          if [ -z "${ISO_FILE}" ]; then
+            echo "ERROR: No ISO file found in output!"
+            ls -la "${OUT_DIR}/"
+            exit 1
+          fi
+          
+          ISO_SIZE=$(du -h "${ISO_FILE}" | cut -f1)
+          echo "==> ISO file: ${ISO_FILE}"
+          echo "==> ISO size: ${ISO_SIZE}"
+          
+          # Verify ISO is bootable (check for GRUB/syslinux)
+          echo "==> Verifying ISO bootability..."
+          xorriso -indev "${ISO_FILE}" -report_el_torito as_mkisofs 2>/dev/null | head -20 || true
+          
+          echo "==> ISO verification complete!"
+
+      - name: Generate checksums
+        run: |
+          echo "==> Generating checksums..."
+          
+          OUT_DIR="${GITHUB_WORKSPACE}/out"
+          ISO_FILE=$(find "${OUT_DIR}" -name "*.iso" -type f | head -1)
+          
+          # Generate SHA256 checksum
+          sha256sum "${ISO_FILE}" > "${ISO_FILE}.sha256sum"
+          
+          # Generate MD5 checksum
+          md5sum "${ISO_FILE}" > "${ISO_FILE}.md5sum"
+          
+          echo "==> Checksums generated!"
+          cat "${ISO_FILE}.sha256sum"
+          
+          # Create build info file
+          cat > "${OUT_DIR}/build-info.txt" << EOF
+          Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Version: ${{ github.event.inputs.version_tag || 'nightly' }}
+          Profile: ${{ github.event.inputs.build_profile || 'full' }}
+          Commit: ${{ github.sha }}
+          Branch: ${{ github.ref_name }}
+          Runner: $(uname -a)
+          ISO Size: $(du -h "${ISO_FILE}" | cut -f1)
+          EOF
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linksos-iso
+          path: |
+            out/*.iso
+            out/*.iso.sha256sum
+            out/*.iso.md5sum
+            out/build-info.txt
+          retention-days: 5
+          compression-level: 0
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'push' || github.event.inputs.version_tag != 'nightly'
+        with:
+          tag_name: ${{ github.event.inputs.version_tag || format('v{0}', github.run_number) }}
+          name: "LinkSOS Linux ${{ github.event.inputs.version_tag || format('v{0}', github.run_number) }}"
+          body: |
+            ## LinkSOS Linux Release
+            
+            **Build Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+            **Commit:** ${{ github.sha }}
+            
+            ### System Specifications
+            - **Desktop:** Hyprland (Wayland) + Waybar (Windows 11-style taskbar)
+            - **Base:** Arch Linux with linux-zen kernel
+            - **Idle RAM:** ~120-150 MB
+            - **Installer:** Calamares (one-click graphical installer)
+            - **Gaming:** Wine + Proton + Lutris + Steam pre-configured
+            
+            ### Download Instructions
+            1. Download the ISO file
+            2. Flash to USB using [Rufus](https://rufus.ie) (Windows) or `dd` (Linux)
+            3. Boot from USB and click "Install LinkSOS" on the desktop
+            
+            ### SHA256 Checksum
+            See the `.sha256sum` file for verification.
+          files: |
+            out/*.iso
+            out/*.iso.sha256sum
+            out/*.iso.md5sum
+            out/build-info.txt
+          draft: false
+          prerelease: ${{ github.event.inputs.version_tag == 'nightly' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup build artifacts
+        if: always()
+        run: |
+          echo "==> Cleaning up build artifacts..."
+          rm -rf /tmp/archiso-work 2>/dev/null || true
+          rm -rf /tmp/archiso-tmp 2>/dev/null || true
+          echo "==> Cleanup complete!"
