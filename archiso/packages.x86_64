@@ -1,5 +1,6 @@
 # LinkSOS Package List (x86_64)
 # Optimized for minimal idle RAM + gaming + modern desktop
+# Every package below must exist in: core, extra, multilib, or archlinuxcn
 
 # === BASE SYSTEM ===
 base
@@ -24,7 +25,7 @@ syslinux
 calamares
 squashfs-tools
 
-# === HYPERLAND DESKTOP ===
+# === HYPRLAND DESKTOP ===
 hyprland
 waybar
 rofi-wayland
@@ -108,7 +109,7 @@ gamescope
 protontricks
 steam-native-runtime
 
-# === GRAPHICS DRIVERS (ALL) ===
+# === GRAPHICS DRIVERS ===
 mesa
 lib32-mesa
 vulkan-radeon
@@ -131,9 +132,6 @@ lib32-vulkan-mesa-layers
 
 # === FLATPAK ===
 flatpak
-
-# === BROWSER ===
-# brave-bin from AUR (installed in customize_airootfs.sh)
 
 # === SYSTEM UTILITIES ===
 htop
@@ -170,13 +168,11 @@ less
 which
 diffutils
 partitionmanager
-gparted
 mpv
 ffmpeg
 imagemagick
 gwenview
 okular
-ark
 file-roller
 unzip
 unrar
@@ -184,13 +180,11 @@ p7zip
 
 # === POWER MANAGEMENT ===
 power-profiles-daemon
-tlp
 upower
 acpi
 
 # === SECURITY ===
 firewalld
-ufw
 apparmor
 
 # === ARCH LINUX CN REPO PACKAGES ===
