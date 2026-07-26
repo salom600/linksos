@@ -101,6 +101,48 @@ rm -f /etc/sudoers.d/10-aur-builder
 echo "==> [LinkSOS] AUR package installation done!"
 
 # ==============================================================================
+# 3b. HEAVY PACKAGE INSTALLATION (moved from packages.x86_64 to reduce ISO size)
+# ==============================================================================
+# These packages were moved out of packages.x86_64 because they significantly
+# inflate the ISO (combined ~600MB+ uncompressed). Installing them here keeps
+# them in the live system while allowing squashfs to compress them efficiently.
+# The ISO must be under 2GB for GitHub Releases upload.
+
+echo "==> [LinkSOS] Installing heavy multilib and GPU packages..."
+
+# Wine additional components (~200MB combined)
+pacman -S --noconfirm --needed wine-mono wine-gecko || {
+    echo "  ⚠ wine-mono/wine-gecko failed, Wine will prompt to download on first run"
+}
+
+# 32-bit gaming compatibility libraries (Steam, Proton, Wine need these)
+pacman -S --noconfirm --needed \
+    lib32-mesa \
+    lib32-vulkan-radeon \
+    lib32-vulkan-intel \
+    lib32-vulkan-swrast \
+    lib32-vulkan-nouveau \
+    lib32-vulkan-mesa-layers \
+    lib32-mangohud \
+    lib32-gamemode \
+    || {
+    echo "  ⚠ Some lib32 packages failed to install (multilib may not be synced)"
+}
+
+# NVIDIA drivers (heavy: ~300MB with DKMS kernel module compilation)
+# Only install if user has NVIDIA hardware — but we include on ISO for convenience
+pacman -S --noconfirm --needed \
+    nvidia-dkms \
+    nvidia-utils \
+    lib32-nvidia-utils \
+    nvidia-settings \
+    || {
+    echo "  ⚠ NVIDIA drivers failed — users can install post-install with: sudo pacman -S nvidia-dkms nvidia-utils"
+}
+
+echo "==> [LinkSOS] Heavy packages installed!"
+
+# ==============================================================================
 # 4. KERNEL OPTIMIZATION
 # ==============================================================================
 

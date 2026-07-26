@@ -219,14 +219,25 @@ jobs:
             - **Gaming:** Wine + Proton + Lutris + Steam pre-configured
             
             ### Download Instructions
-            1. Download the ISO file
-            2. Flash to USB using [Rufus](https://rufus.ie) (Windows) or `dd` (Linux)
-            3. Boot from USB and click "Install LinkSOS" on the desktop
+            
+            **The ISO file is too large for GitHub Releases (>2GB).**
+            Download it from the **Actions artifact** instead:
+            
+            1. Go to the [Actions tab](https://github.com/salom600/linksos/actions)
+            2. Click the latest successful build
+            3. Download the `linksos-iso` artifact from the Artifacts section
+            4. Extract the ZIP — the ISO file is inside
+            
+            Then flash to USB using [Rufus](https://rufus.ie) (Windows) or `dd` (Linux/macOS):
+            ```bash
+            dd bs=4M if=linksos-*.iso of=/dev/sdX status=progress && sync
+            ```
+            
+            Boot from USB and click "Install LinkSOS" on the desktop.
             
             ### SHA256 Checksum
-            See the `.sha256sum` file for verification.
+            See the `.sha256sum` file in the artifact for verification.
           files: |
-            out/*.iso
             out/*.iso.sha256sum
             out/*.iso.md5sum
             out/build-info.txt
