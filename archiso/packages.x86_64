@@ -1,6 +1,16 @@
 # LinkSOS Package List (x86_64)
 # Optimized for minimal idle RAM + gaming + modern desktop
-# Every package below must exist in: core, extra, multilib, or archlinuxcn
+#
+# RULE: Only packages that exist in core, extra, multilib, or archlinuxcn
+# AUR-only packages (calamares, tela-icon-theme) are installed in
+# customize_airootfs.sh via yay
+#
+# FIXED from previous build errors:
+# - calamares        → NOT in any repo, moved to customize_airootfs.sh (yay)
+# - tela-icon-theme  → NOT in any repo, moved to customize_airootfs.sh (yay)
+# - adwaita-gtk-theme → NOT a real package, Adwaita is in gnome-themes-extra
+# - steam-native-runtime → NOT in repos, removed (steam is sufficient)
+# - p7zip            → Has provider conflict, replaced with 7zip
 
 # === BASE SYSTEM ===
 base
@@ -22,8 +32,8 @@ efibootmgr
 os-prober
 memtest86+
 syslinux
-calamares
 squashfs-tools
+# calamares installed via yay in customize_airootfs.sh (not in any repo)
 
 # === HYPRLAND DESKTOP ===
 hyprland
@@ -74,14 +84,14 @@ alsa-utils
 sof-firmware
 
 # === THEMING ===
-tela-icon-theme
 papirus-icon-theme
 nwg-look
 kvantum
 qt5ct
 qt6ct
-adwaita-gtk-theme
 gnome-themes-extra
+# tela-icon-theme installed via yay in customize_airootfs.sh (not in any repo)
+# adwaita-gtk-theme doesn't exist; Adwaita is part of gnome-themes-extra
 
 # === FONTS ===
 noto-fonts
@@ -107,7 +117,7 @@ gamemode
 lib32-gamemode
 gamescope
 protontricks
-steam-native-runtime
+# steam-native-runtime removed (not in repos, steam is sufficient)
 
 # === GRAPHICS DRIVERS ===
 mesa
@@ -176,7 +186,7 @@ okular
 file-roller
 unzip
 unrar
-p7zip
+7zip
 
 # === POWER MANAGEMENT ===
 power-profiles-daemon

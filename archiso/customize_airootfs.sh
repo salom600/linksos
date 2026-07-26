@@ -50,7 +50,58 @@ echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-wheel-nopasswd
 chmod 0440 /etc/sudoers.d/99-wheel-nopasswd
 
 # ==============================================================================
-# 3. KERNEL OPTIMIZATION
+# 3. AUR PACKAGE INSTALLATION (packages not in official repos)
+# ==============================================================================
+
+echo "==> [LinkSOS] Installing AUR packages via yay..."
+
+# Packages that are NOT in core/extra/multilib/archlinuxcn repos:
+# - calamares (removed from official repos, now AUR-only)
+# - tela-icon-theme (AUR-only)
+# These must be built from source using yay, which requires a non-root user.
+
+# Create a temporary build user (yay refuses to run as root)
+useradd -m -G wheel -s /bin/bash aur-builder 2>/dev/null || true
+echo "aur-builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/10-aur-builder
+chmod 0440 /etc/sudoers.d/10-aur-builder
+
+# Build and install AUR packages
+# NOTE: This may take 10-30 minutes for calamares (large C++ project)
+echo "  → Installing calamares (graphical installer)..."
+su - aur-builder -c "yay -S --noconfirm --needed --removemake calamares" || {
+    echo "  ⚠ WARNING: calamares AUR build failed!"
+    echo "  → Attempting direct download from archlinuxcn as fallback..."
+    # Fallback: try to find a pre-built binary
+    pacman -Syy --noconfirm 2>/dev/null || true
+    pacman -S --noconfirm calamares 2>/dev/null || {
+        echo "  ⚠ calamares unavailable. Installer desktop shortcut will be hidden."
+        # Create a post-install script instead
+        cat > /usr/local/bin/linksos-install << 'INSTALLEOF'
+#!/usr/bin/env bash
+echo "LinkSOS installer is not pre-installed on this live ISO."
+echo "After installing the base system, run: sudo pacman -S calamares"
+echo "Or use the guided partition + copy method:"
+echo "  1. Partition your disk with cfdisk/gdisk"
+echo "  2. Format and mount partitions"
+echo "  3. Copy the live system files"
+INSTALLEOF
+        chmod +x /usr/local/bin/linksos-install || true
+    }
+}
+
+echo "  → Installing tela-icon-theme..."
+su - aur-builder -c "yay -S --noconfirm --needed --removemake tela-icon-theme" || {
+    echo "  ⚠ tela-icon-theme build failed, papirus-icon-theme will be used instead"
+}
+
+# Clean up temporary build user
+userdel -r aur-builder 2>/dev/null || true
+rm -f /etc/sudoers.d/10-aur-builder
+
+echo "==> [LinkSOS] AUR package installation done!"
+
+# ==============================================================================
+# 4. KERNEL OPTIMIZATION
 # ==============================================================================
 
 echo "==> [LinkSOS] Optimizing kernel parameters..."
