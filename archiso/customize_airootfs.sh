@@ -53,94 +53,51 @@ chmod 0440 /etc/sudoers.d/99-wheel-nopasswd
 # 3. AUR PACKAGE INSTALLATION (packages not in official repos)
 # ==============================================================================
 
-echo "==> [LinkSOS] Installing AUR packages via yay..."
+echo "==> [LinkSOS] Installing AUR/archlinuxcn packages..."
 
-# Packages that are NOT in core/extra/multilib/archlinuxcn repos:
-# - calamares (removed from official repos, now AUR-only)
-# - tela-icon-theme (AUR-only)
-# These must be built from source using yay, which requires a non-root user.
-
-# Create a temporary build user (yay refuses to run as root)
-useradd -m -G wheel -s /bin/bash aur-builder 2>/dev/null || true
-echo "aur-builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/10-aur-builder
-chmod 0440 /etc/sudoers.d/10-aur-builder
-
-# Build and install AUR packages
-# NOTE: This may take 10-30 minutes for calamares (large C++ project)
+# calamares: First try archlinuxcn pre-built binary (fast, reliable).
+# If not available there, fall back to AUR build via yay.
 echo "  → Installing calamares (graphical installer)..."
-su - aur-builder -c "yay -S --noconfirm --needed --removemake calamares" || {
-    echo "  ⚠ WARNING: calamares AUR build failed!"
-    echo "  → Attempting direct download from archlinuxcn as fallback..."
-    # Fallback: try to find a pre-built binary
-    pacman -Syy --noconfirm 2>/dev/null || true
-    pacman -S --noconfirm calamares 2>/dev/null || {
-        echo "  ⚠ calamares unavailable. Installer desktop shortcut will be hidden."
-        # Create a post-install script instead
+pacman -S --noconfirm --needed calamares 2>/dev/null || {
+    echo "  → calamares not in archlinuxcn, trying AUR build..."
+    # Create a temporary build user (yay refuses to run as root)
+    useradd -m -G wheel -s /bin/bash aur-builder 2>/dev/null || true
+    echo "aur-builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/10-aur-builder
+    chmod 0440 /etc/sudoers.d/10-aur-builder
+    su - aur-builder -c "yay -S --noconfirm --needed --removemake calamares" || {
+        echo "  ⚠ WARNING: calamares install failed!"
+        echo "  → Creating fallback install script..."
         cat > /usr/local/bin/linksos-install << 'INSTALLEOF'
 #!/usr/bin/env bash
 echo "LinkSOS installer is not pre-installed on this live ISO."
 echo "After installing the base system, run: sudo pacman -S calamares"
-echo "Or use the guided partition + copy method:"
-echo "  1. Partition your disk with cfdisk/gdisk"
-echo "  2. Format and mount partitions"
-echo "  3. Copy the live system files"
 INSTALLEOF
         chmod +x /usr/local/bin/linksos-install || true
     }
+    userdel -r aur-builder 2>/dev/null || true
+    rm -f /etc/sudoers.d/10-aur-builder
 }
 
 echo "  → Installing tela-icon-theme..."
+# tela-icon-theme is AUR-only, no pre-built binary available
+useradd -m -G wheel -s /bin/bash aur-builder 2>/dev/null || true
+echo "aur-builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/10-aur-builder 2>/dev/null || true
+chmod 0440 /etc/sudoers.d/10-aur-builder 2>/dev/null || true
 su - aur-builder -c "yay -S --noconfirm --needed --removemake tela-icon-theme" || {
     echo "  ⚠ tela-icon-theme build failed, papirus-icon-theme will be used instead"
 }
-
-# Clean up temporary build user
 userdel -r aur-builder 2>/dev/null || true
-rm -f /etc/sudoers.d/10-aur-builder
+rm -f /etc/sudoers.d/10-aur-builder 2>/dev/null || true
 
 echo "==> [LinkSOS] AUR package installation done!"
 
 # ==============================================================================
-# 3b. HEAVY PACKAGE INSTALLATION (moved from packages.x86_64 to reduce ISO size)
+# 3b. NOTE: Heavy packages (NVIDIA, lib32, wine-mono/gecko) are NOT in the live
+# ISO. They are installed after the user installs LinkSOS to disk via the
+# first-run wizard (linksos-setup-gaming). This keeps the ISO under 2GB.
 # ==============================================================================
-# These packages were moved out of packages.x86_64 because they significantly
-# inflate the ISO (combined ~600MB+ uncompressed). Installing them here keeps
-# them in the live system while allowing squashfs to compress them efficiently.
-# The ISO must be under 2GB for GitHub Releases upload.
 
-echo "==> [LinkSOS] Installing heavy multilib and GPU packages..."
-
-# Wine additional components (~200MB combined)
-pacman -S --noconfirm --needed wine-mono wine-gecko || {
-    echo "  ⚠ wine-mono/wine-gecko failed, Wine will prompt to download on first run"
-}
-
-# 32-bit gaming compatibility libraries (Steam, Proton, Wine need these)
-pacman -S --noconfirm --needed \
-    lib32-mesa \
-    lib32-vulkan-radeon \
-    lib32-vulkan-intel \
-    lib32-vulkan-swrast \
-    lib32-vulkan-nouveau \
-    lib32-vulkan-mesa-layers \
-    lib32-mangohud \
-    lib32-gamemode \
-    || {
-    echo "  ⚠ Some lib32 packages failed to install (multilib may not be synced)"
-}
-
-# NVIDIA drivers (heavy: ~300MB with DKMS kernel module compilation)
-# Only install if user has NVIDIA hardware — but we include on ISO for convenience
-pacman -S --noconfirm --needed \
-    nvidia-dkms \
-    nvidia-utils \
-    lib32-nvidia-utils \
-    nvidia-settings \
-    || {
-    echo "  ⚠ NVIDIA drivers failed — users can install post-install with: sudo pacman -S nvidia-dkms nvidia-utils"
-}
-
-echo "==> [LinkSOS] Heavy packages installed!"
+echo "==> [LinkSOS] Heavy packages skipped — will be installed after disk install via first-run wizard"
 
 # ==============================================================================
 # 4. KERNEL OPTIMIZATION
@@ -959,6 +916,9 @@ echo "==> [LinkSOS] Creating custom utility scripts..."
 cat > /usr/local/bin/linksos-first-run << 'FIRSTRUNEOF'
 #!/usr/bin/env bash
 # LinkSOS First-Run Wizard
+# Runs after the user installs LinkSOS to disk via Calamares.
+# Installs GPU drivers, gaming stack, and heavy packages that
+# were excluded from the live ISO to keep it under 2GB.
 
 MARKER="$HOME/.config/linksos/.first-run-done"
 
@@ -968,47 +928,112 @@ fi
 
 mkdir -p "$HOME/.config/linksos"
 
-notify-send "Welcome to LinkSOS!" "A modern, lightweight, gaming-ready desktop experience." 2>/dev/null || true
+notify-send "Welcome to LinkSOS!" "Setting up your gaming-ready desktop. This may take a few minutes..." 2>/dev/null || true
 
-# Detect GPU and install appropriate drivers
+echo "==> [LinkSOS] First-run setup: installing full package set..."
+
+# === GPU Drivers (detect hardware automatically) ===
+echo "  → Detecting GPU and installing drivers..."
 if lspci | grep -qi nvidia; then
-    sudo pacman -S --noconfirm --needed nvidia-dkms nvidia-utils lib32-nvidia-utils nvidia-settings 2>/dev/null || true
-elif lspci | grep -qi amd; then
-    sudo pacman -S --noconfirm --needed mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon 2>/dev/null || true
+    echo "    NVIDIA GPU detected"
+    sudo pacman -S --noconfirm --needed \
+        nvidia-dkms nvidia-utils lib32-nvidia-utils nvidia-settings \
+        2>/dev/null || true
+elif lspci | grep -qi 'amd\|radeon'; then
+    echo "    AMD GPU detected"
+    sudo pacman -S --noconfirm --needed \
+        vulkan-radeon lib32-vulkan-radeon \
+        lib32-mesa lib32-vulkan-mesa-layers \
+        2>/dev/null || true
 elif lspci | grep -qi intel; then
-    sudo pacman -S --noconfirm --needed mesa lib32-mesa vulkan-intel lib32-vulkan-intel 2>/dev/null || true
+    echo "    Intel GPU detected"
+    sudo pacman -S --noconfirm --needed \
+        vulkan-intel lib32-vulkan-intel \
+        lib32-mesa lib32-vulkan-mesa-layers \
+        2>/dev/null || true
 fi
 
+# === 32-bit Compatibility (needed for Steam, Proton, Wine) ===
+echo "  → Installing 32-bit compatibility libraries..."
+sudo pacman -S --noconfirm --needed \
+    lib32-mesa lib32-vulkan-swrast \
+    lib32-mangohud lib32-gamemode \
+    2>/dev/null || true
+
+# === Gaming Stack ===
+echo "  → Installing gaming packages..."
+sudo pacman -S --noconfirm --needed \
+    wine-mono wine-gecko \
+    steam lutris mangohud gamemode gamescope protontricks \
+    2>/dev/null || true
+
+# === CJK and Extra Fonts ===
+echo "  → Installing additional fonts..."
+sudo pacman -S --noconfirm --needed \
+    noto-fonts-cjk noto-fonts-extra \
+    2>/dev/null || true
+
+# === Additional Utilities (excluded from ISO for size) ===
+echo "  → Installing additional utilities..."
+sudo pacman -S --noconfirm --needed \
+    kate ark filelight ffmpegthumbs kdegraphics-thumbnailers \
+    mpv ffmpeg imagemagick gwenview okular \
+    file-roller partitionmanager \
+    cups ghostscript gsfonts sane sane-airscan simple-scan \
+    sof-firmware flatpak \
+    smartmontools lshw dmidecode rsync \
+    man-pages texinfo \
+    unrar \
+    gvfs-mtp gvfs-smb gvfs-gphoto2 \
+    apparmor acpi \
+    vulkan-mesa-layers \
+    2>/dev/null || true
+
 date > "$MARKER"
-echo "==> [LinkSOS] First-run setup complete!"
+echo "==> [LinkSOS] First-run setup complete! Your system is now fully configured."
+notify-send "LinkSOS Setup Complete!" "All gaming and desktop packages installed. Enjoy!" 2>/dev/null || true
 FIRSTRUNEOF
 chmod +x /usr/local/bin/linksos-first-run
 
 cat > /usr/local/bin/linksos-setup-gaming << 'GAMINGEOF'
 #!/usr/bin/env bash
-# LinkSOS Gaming Setup Script
+# LinkSOS Gaming Setup — standalone script for re-running gaming setup
 
 echo "==> [LinkSOS] Setting up gaming environment..."
 
-# Detect GPU
+# Detect GPU and install appropriate drivers
 if lspci | grep -qi nvidia; then
-    pacman -S --noconfirm --needed nvidia-dkms nvidia-utils lib32-nvidia-utils nvidia-settings 2>/dev/null || true
-elif lspci | grep -qi amd; then
-    pacman -S --noconfirm --needed mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon 2>/dev/null || true
+    echo "  → NVIDIA GPU detected"
+    sudo pacman -S --noconfirm --needed \
+        nvidia-dkms nvidia-utils lib32-nvidia-utils nvidia-settings \
+        2>/dev/null || true
+elif lspci | grep -qi 'amd\|radeon'; then
+    echo "  → AMD GPU detected"
+    sudo pacman -S --noconfirm --needed \
+        vulkan-radeon lib32-vulkan-radeon \
+        lib32-mesa lib32-vulkan-mesa-layers \
+        2>/dev/null || true
 elif lspci | grep -qi intel; then
-    pacman -S --noconfirm --needed mesa lib32-mesa vulkan-intel lib32-vulkan-intel 2>/dev/null || true
+    echo "  → Intel GPU detected"
+    sudo pacman -S --noconfirm --needed \
+        vulkan-intel lib32-vulkan-intel \
+        lib32-mesa lib32-vulkan-mesa-layers \
+        2>/dev/null || true
 fi
 
-# Install gaming tools
-pacman -S --noconfirm --needed \
+# Install full gaming tools
+sudo pacman -S --noconfirm --needed \
     wine wine-mono wine-gecko winetricks \
     steam lutris \
     mangohud lib32-mangohud \
     gamemode lib32-gamemode \
     gamescope protontricks \
+    lib32-mesa lib32-vulkan-swrast \
     2>/dev/null || true
 
 echo "==> [LinkSOS] Gaming setup complete!"
+echo "    Steam, Lutris, Wine, and GPU drivers are installed."
+echo "    Launch Steam from the app launcher to start gaming!"
 GAMINGEOF
 chmod +x /usr/local/bin/linksos-setup-gaming
 

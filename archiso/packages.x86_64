@@ -1,16 +1,18 @@
-# LinkSOS Package List (x86_64)
-# Optimized for minimal idle RAM + gaming + modern desktop
+# LinkSOS Package List (x86_64) — LEAN LIVE ISO
+# Target: <2GB ISO for GitHub Releases upload
 #
-# RULE: Only packages that exist in core, extra, multilib, or archlinuxcn
-# AUR-only packages (calamares, tela-icon-theme) are installed in
-# customize_airootfs.sh via yay
+# STRATEGY: The live ISO contains only what's needed to boot, run the desktop,
+# and install the system. Heavy packages (gaming stack, NVIDIA drivers, lib32
+# multilib, wine-mono/gecko, CJK fonts) are installed AFTER the user installs
+# LinkSOS to disk, via the first-run wizard (linksos-setup-gaming script).
 #
-# FIXED from previous build errors:
-# - calamares        → NOT in any repo, moved to customize_airootfs.sh (yay)
-# - tela-icon-theme  → NOT in any repo, moved to customize_airootfs.sh (yay)
-# - adwaita-gtk-theme → NOT a real package, Adwaita is in gnome-themes-extra
-# - steam-native-runtime → NOT in repos, removed (steam is sufficient)
-# - p7zip            → Has provider conflict, replaced with 7zip
+# This is the same approach used by Ubuntu, Fedora, etc. — the ISO is lean,
+# and additional packages are added post-installation.
+#
+# RULES:
+# - Only packages from core, extra, multilib, or archlinuxcn repos
+# - AUR-only packages (calamares, tela-icon-theme) installed in customize_airootfs.sh
+# - Heavy packages installed after disk install via linksos-setup-gaming
 
 # === BASE SYSTEM ===
 base
@@ -33,7 +35,7 @@ os-prober
 memtest86+
 syslinux
 squashfs-tools
-# calamares installed via yay in customize_airootfs.sh (not in any repo)
+# calamares → installed in customize_airootfs.sh (try archlinuxcn first, then AUR)
 
 # === HYPRLAND DESKTOP ===
 hyprland
@@ -52,18 +54,10 @@ qt6-wayland
 glfw-wayland
 xorg-xwayland
 
-# === FILE MANAGER & UTILITIES ===
+# === FILE MANAGER & BASIC UTILITIES ===
 dolphin
 konsole
-kate
-ark
-filelight
-ffmpegthumbs
-kdegraphics-thumbnailers
 gvfs
-gvfs-mtp
-gvfs-smb
-gvfs-gphoto2
 
 # === NETWORKING ===
 networkmanager
@@ -81,7 +75,7 @@ wireplumber
 pavucontrol
 pamixer
 alsa-utils
-sof-firmware
+# sof-firmware → installed post-install (only needed for specific Sound Open Firmware hardware)
 
 # === THEMING ===
 papirus-icon-theme
@@ -90,50 +84,38 @@ kvantum
 qt5ct
 qt6ct
 gnome-themes-extra
-# tela-icon-theme installed via yay in customize_airootfs.sh (not in any repo)
-# adwaita-gtk-theme doesn't exist; Adwaita is part of gnome-themes-extra
+# tela-icon-theme → installed in customize_airootfs.sh (AUR-only)
 
-# === FONTS ===
+# === FONTS (minimal set; CJK/extra installed post-install) ===
 noto-fonts
-noto-fonts-cjk
 noto-fonts-emoji
-noto-fonts-extra
 ttf-font-awesome
 ttf-jetbrains-mono
 ttf-hack
 ttf-dejavu
 ttf-liberation
+# noto-fonts-cjk → HUGE (~100MB), installed post-install
+# noto-fonts-extra → installed post-install
 
-# === GAMING (core packages only; heavy libs installed post-install) ===
+# === BASIC GAMING (core only; full stack installed post-install) ===
 wine
 winetricks
-lutris
-steam
-mangohud
-gamemode
-gamescope
-protontricks
-# wine-mono, wine-gecko → installed in customize_airootfs.sh (heavy, ~200MB combined)
-# lib32-mangohud, lib32-gamemode → installed in customize_airootfs.sh
+# wine-mono, wine-gecko → ~200MB combined, installed post-install
+# lutris, steam, mangohud, gamemode, gamescope, protontricks → installed post-install
+# ALL lib32-* packages → installed post-install
 
-# === GRAPHICS DRIVERS (basic only; vendor-specific installed post-install) ===
+# === BASIC GRAPHICS (software fallback + basic drivers) ===
 mesa
-vulkan-radeon
-vulkan-intel
 vulkan-swrast
 xf86-video-amdgpu
 xf86-video-ati
 xf86-video-intel
 xf86-video-nouveau
-vulkan-mesa-layers
-# lib32-mesa, lib32-vulkan-* → installed in customize_airootfs.sh (heavy multilib)
-# nvidia-dkms, nvidia-utils, lib32-nvidia-utils, nvidia-settings → installed in customize_airootfs.sh
-# lib32-vulkan-nouveau, lib32-vulkan-mesa-layers → installed in customize_airootfs.sh
+# vulkan-radeon, vulkan-intel, vulkan-mesa-layers → installed post-install
+# nvidia-dkms, nvidia-utils, lib32-nvidia-utils, nvidia-settings → installed post-install
+# ALL lib32-vulkan-* → installed post-install
 
-# === FLATPAK ===
-flatpak
-
-# === SYSTEM UTILITIES ===
+# === ESSENTIAL SYSTEM UTILITIES ===
 htop
 btop
 fastfetch
@@ -142,50 +124,27 @@ curl
 wget
 vim
 nano
-rsync
-usbutils
-pciutils
-lshw
-dmidecode
-inxi
-smartmontools
-udisks2
-udisks2-btrfs
-bluez
-bluez-utils
-blueman
-cups
-ghostscript
-gsfonts
-sane
-sane-airscan
-simple-scan
 bash-completion
 man-db
-man-pages
-texinfo
 less
 which
 diffutils
-partitionmanager
-mpv
-ffmpeg
-imagemagick
-gwenview
-okular
-file-roller
+usbutils
+pciutils
+inxi
+udisks2
+bluez
+bluez-utils
+blueman
 unzip
-unrar
 7zip
 
 # === POWER MANAGEMENT ===
 power-profiles-daemon
 upower
-acpi
 
 # === SECURITY ===
 firewalld
-apparmor
 
 # === ARCH LINUX CN REPO PACKAGES ===
 yay
