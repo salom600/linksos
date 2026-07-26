@@ -26,6 +26,9 @@ env:
   ISO_NAME: linksos
   ARCHISO_PROFILE: archiso
 
+permissions:
+  contents: write
+
 jobs:
   build-iso:
     name: Build LinkSOS ISO
@@ -79,7 +82,7 @@ jobs:
             curl \
             wget \
             reflector \
-            p7zip \
+            7zip \
             unzip \
             dosfstools \
             mtools \
